@@ -304,4 +304,5 @@ async function saveNewNb(){
 function closeModal(){document.getElementById('modal').innerHTML=''}
 
 init();
+fetch('/api/tier').then(r=>r.json()).then(j=>{if(j.tier==='free'){var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'}}).catch(()=>{var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'});
 </script></body></html>`
