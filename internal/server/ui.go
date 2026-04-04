@@ -3,306 +3,236 @@ package server
 import "net/http"
 
 func (s *Server) dashboard(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Content-Type", "text/html")
 	w.Write([]byte(dashHTML))
 }
 
-const dashHTML = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Notebook</title>
+const dashHTML = `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Notebook</title>
 <style>
-:root{--bg:#1a1410;--bg2:#241e18;--bg3:#2e261e;--rust:#c45d2c;--rl:#e8753a;--leather:#a0845c;--ll:#c4a87a;--cream:#f0e6d3;--cd:#bfb5a3;--cm:#7a7060;--gold:#d4a843;--green:#4a9e5c;--red:#c44040;--mono:'JetBrains Mono',Consolas,monospace;--serif:'Libre Baskerville',Georgia,serif}
-*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--cream);font-family:var(--mono);font-size:13px;line-height:1.6;height:100vh;overflow:hidden}
-a{color:var(--rl);text-decoration:none}a:hover{color:var(--gold)}
-.app{display:flex;height:100vh}
-.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--bg3);display:flex;flex-direction:column;flex-shrink:0}
-.sidebar-hdr{padding:.6rem .8rem;border-bottom:1px solid var(--bg3);font-family:var(--serif);font-size:.9rem}
-.sidebar-hdr span{color:var(--rl)}
-.sidebar-section{padding:.4rem .8rem;font-size:.6rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--rust);margin-top:.5rem}
-.sidebar-item{padding:.3rem .8rem;font-size:.75rem;cursor:pointer;display:flex;align-items:center;gap:.4rem;transition:background .1s;color:var(--cd)}
-.sidebar-item:hover{background:var(--bg3)}.sidebar-item.active{background:var(--bg3);color:var(--cream)}
-.sidebar-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.sidebar-count{margin-left:auto;font-size:.6rem;color:var(--cm)}
-.sidebar-bottom{margin-top:auto;padding:.5rem .8rem;border-top:1px solid var(--bg3);font-size:.65rem;color:var(--cm)}
-
-.list-pane{width:280px;border-right:1px solid var(--bg3);display:flex;flex-direction:column;flex-shrink:0}
-.list-toolbar{padding:.4rem .6rem;border-bottom:1px solid var(--bg3);display:flex;gap:.4rem;align-items:center}
-.list-toolbar input{flex:1;background:var(--bg);border:1px solid var(--bg3);color:var(--cream);padding:.3rem .5rem;font-family:var(--mono);font-size:.72rem;outline:none}
-.list-toolbar input:focus{border-color:var(--rust)}
-.list-scroll{flex:1;overflow-y:auto}
-.note-item{padding:.5rem .7rem;border-bottom:1px solid var(--bg3);cursor:pointer;transition:background .1s}
-.note-item:hover{background:var(--bg2)}.note-item.active{background:var(--bg2);border-left:2px solid var(--rl)}
-.note-item-title{font-size:.78rem;font-weight:600;display:flex;align-items:center;gap:.3rem}
-.note-item-title .pin{color:var(--gold);font-size:.6rem}
-.note-item-preview{font-size:.68rem;color:var(--cm);margin-top:.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.note-item-meta{font-size:.6rem;color:var(--cm);margin-top:.15rem;display:flex;gap:.5rem}
-.tag-chip{font-size:.55rem;padding:0 .25rem;background:var(--bg3);color:var(--ll);border-radius:2px}
-
-.editor-pane{flex:1;display:flex;flex-direction:column;min-width:0}
-.editor-toolbar{padding:.4rem .8rem;border-bottom:1px solid var(--bg3);display:flex;align-items:center;gap:.5rem}
-.editor-toolbar select{background:var(--bg);border:1px solid var(--bg3);color:var(--cream);font-family:var(--mono);font-size:.72rem;padding:.25rem .4rem}
-.btn{font-family:var(--mono);font-size:.68rem;padding:.25rem .6rem;border:1px solid;cursor:pointer;background:transparent;transition:.15s;white-space:nowrap}
-.btn-p{border-color:var(--rust);color:var(--rl)}.btn-p:hover{background:var(--rust);color:var(--cream)}
-.btn-d{border-color:var(--bg3);color:var(--cm)}.btn-d:hover{border-color:var(--red);color:var(--red)}
-.btn-s{border-color:var(--green);color:var(--green)}.btn-s:hover{background:var(--green);color:var(--bg)}
-.btn-g{border-color:var(--gold);color:var(--gold)}.btn-g:hover{background:var(--gold);color:var(--bg)}
-.editor-title{width:100%;background:transparent;border:none;color:var(--cream);font-family:var(--serif);font-size:1.1rem;padding:.6rem .8rem;outline:none;border-bottom:1px solid var(--bg3)}
-.editor-tags{padding:.3rem .8rem;border-bottom:1px solid var(--bg3)}
-.editor-tags input{background:transparent;border:none;color:var(--ll);font-family:var(--mono);font-size:.7rem;outline:none;width:100%}
-.editor-body{flex:1;display:flex;overflow:hidden}
-.editor-body textarea{flex:1;background:transparent;border:none;color:var(--cd);font-family:var(--mono);font-size:.8rem;padding:.8rem;outline:none;resize:none;line-height:1.7}
-.preview{flex:1;padding:.8rem;overflow-y:auto;border-left:1px solid var(--bg3);font-size:.8rem;color:var(--cd);line-height:1.7;display:none}
-.preview h1,.preview h2,.preview h3{color:var(--cream);font-family:var(--serif);margin:1rem 0 .4rem}
-.preview h1{font-size:1.2rem}.preview h2{font-size:1rem}.preview h3{font-size:.9rem}
-.preview p{margin:.4rem 0}.preview code{background:var(--bg3);padding:.1rem .3rem;font-size:.75rem;border-radius:2px}
-.preview pre{background:var(--bg3);padding:.6rem;margin:.5rem 0;overflow-x:auto;font-size:.75rem;border-radius:2px}
-.preview pre code{background:transparent;padding:0}
-.preview ul,.preview ol{padding-left:1.2rem;margin:.4rem 0}
-.preview blockquote{border-left:3px solid var(--rust);padding-left:.8rem;color:var(--cm);margin:.5rem 0}
-.preview a{color:var(--rl)}.preview strong{color:var(--cream)}.preview em{color:var(--ll)}
-
-.empty{text-align:center;padding:3rem 1rem;color:var(--cm);font-style:italic;font-family:var(--serif)}
-
-.modal-bg{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:100}
-.modal{background:var(--bg2);border:1px solid var(--bg3);padding:1.5rem;width:90%;max-width:400px}
-.modal h2{font-family:var(--serif);font-size:.9rem;margin-bottom:.8rem}
-label.fl{display:block;font-size:.65rem;color:var(--leather);text-transform:uppercase;letter-spacing:1px;margin-bottom:.2rem;margin-top:.5rem}
-input[type=text],input[type=color]{background:var(--bg);border:1px solid var(--bg3);color:var(--cream);padding:.35rem .5rem;font-family:var(--mono);font-size:.78rem;width:100%;outline:none}
-input:focus{border-color:var(--rust)}
-</style>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Baskerville:ital@0;1&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-</head><body>
-<div class="app">
-<div class="sidebar">
-<div class="sidebar-hdr"><span>Notebook</span></div>
-<div class="sidebar-section">Notebooks</div>
-<div class="sidebar-item active" onclick="filterNotebook('')" data-nb="all">All notes <span class="sidebar-count" id="sAll">-</span></div>
-<div id="nbList"></div>
-<div class="sidebar-item" style="color:var(--rl)" onclick="showNewNotebook()">+ New notebook</div>
-<div class="sidebar-section">Tags</div>
-<div id="tagList"></div>
-<div class="sidebar-section" style="margin-top:.5rem">Views</div>
-<div class="sidebar-item" onclick="filterPinned()">&#x1f4cc; Pinned</div>
-<div class="sidebar-item" onclick="filterArchived()">&#x1f4e6; Archive</div>
-<div class="sidebar-bottom" id="sWords">-</div>
-</div>
-<div class="list-pane">
-<div class="list-toolbar">
-<input type="text" id="searchBox" placeholder="Search notes..." onkeydown="if(event.key==='Enter')loadNotes()">
-<button class="btn btn-p" onclick="newNote()">+</button>
-</div>
-<div class="list-scroll" id="noteList"></div>
-</div>
-<div class="editor-pane" id="editorPane" style="display:none">
-<div class="editor-toolbar">
-<select id="edNb" onchange="saveNote()"></select>
-<button class="btn btn-g" id="pinBtn" onclick="togglePin()">Pin</button>
-<button class="btn btn-d" id="previewBtn" onclick="togglePreview()">Preview</button>
-<button class="btn btn-d" onclick="exportNote()">Export</button>
-<button class="btn btn-d" onclick="archiveCur()">Archive</button>
-<span style="flex:1"></span>
-<span style="font-size:.6rem;color:var(--cm)" id="edMeta"></span>
-<button class="btn btn-d" onclick="deleteCur()">Del</button>
-</div>
-<input class="editor-title" id="edTitle" placeholder="Note title..." oninput="autoSave()">
-<div class="editor-tags"><input type="text" id="edTags" placeholder="Tags (comma-separated)" onchange="saveNote()"></div>
-<div class="editor-body">
-<textarea id="edBody" oninput="autoSave()" placeholder="Write in Markdown..."></textarea>
-<div class="preview" id="previewArea"></div>
+:root{--bg:#1a1410;--bg2:#241e18;--bg3:#2e261e;--rust:#e8753a;--leather:#a0845c;--cream:#f0e6d3;--cd:#bfb5a3;--cm:#7a7060;--gold:#d4a843;--green:#4a9e5c;--red:#c94444;--mono:'JetBrains Mono',monospace;--serif:'Libre Baskerville',serif}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--cream);font-family:var(--serif);line-height:1.6;height:100vh;display:flex;flex-direction:column}
+.hdr{padding:.7rem 1.2rem;border-bottom:1px solid var(--bg3);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.hdr h1{font-family:var(--mono);font-size:.85rem;letter-spacing:2px;text-transform:uppercase}
+.hdr-r{display:flex;gap:.4rem;align-items:center}
+.wrap{display:flex;flex:1;overflow:hidden}
+.side{width:220px;border-right:1px solid var(--bg3);display:flex;flex-direction:column;flex-shrink:0;background:var(--bg2)}
+.side-hdr{padding:.6rem .8rem;border-bottom:1px solid var(--bg3);display:flex;justify-content:space-between;align-items:center}
+.side-hdr span{font-family:var(--mono);font-size:.6rem;text-transform:uppercase;letter-spacing:1px;color:var(--cm)}
+.nb-list{flex:1;overflow-y:auto;padding:.3rem 0}
+.nb-item{padding:.4rem .8rem;cursor:pointer;font-size:.78rem;display:flex;align-items:center;gap:.5rem;border-left:3px solid transparent}
+.nb-item:hover{background:var(--bg3)}.nb-item.active{background:var(--bg3);border-left-color:var(--rust)}
+.nb-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.nb-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nb-count{font-family:var(--mono);font-size:.55rem;color:var(--cm)}
+.nb-special{color:var(--cm);font-style:italic}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.toolbar{padding:.5rem .8rem;border-bottom:1px solid var(--bg3);display:flex;gap:.4rem;align-items:center;flex-wrap:wrap}
+.search{background:var(--bg2);border:1px solid var(--bg3);color:var(--cream);font-family:var(--mono);font-size:.7rem;padding:.3rem .5rem;flex:1;min-width:120px}
+.search:focus{outline:none;border-color:var(--leather)}
+.stats{display:flex;gap:.3rem;padding:.4rem .8rem;border-bottom:1px solid var(--bg3)}
+.st{background:var(--bg2);border:1px solid var(--bg3);padding:.3rem .6rem;text-align:center;font-family:var(--mono);flex:1}
+.st-v{font-size:1rem;color:var(--cream)}.st-l{font-size:.45rem;color:var(--cm);text-transform:uppercase;letter-spacing:1px;margin-top:.05rem}
+.notes{flex:1;overflow-y:auto;padding:.5rem .8rem}
+.note{background:var(--bg2);border:1px solid var(--bg3);padding:.7rem .9rem;margin-bottom:.4rem;cursor:pointer;transition:border-color .15s}
+.note:hover{border-color:var(--leather)}
+.note.pinned{border-left:3px solid var(--gold)}
+.note-top{display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem}
+.note-title{font-size:.88rem;flex:1}.note-title.untitled{color:var(--cm);font-style:italic}
+.note-acts{display:flex;gap:.2rem;opacity:0;transition:opacity .15s}.note:hover .note-acts{opacity:1}
+.note-preview{font-size:.72rem;color:var(--cm);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.note-meta{font-family:var(--mono);font-size:.55rem;color:var(--cm);margin-top:.3rem;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.tag{font-family:var(--mono);font-size:.5rem;padding:.1rem .3rem;background:var(--bg3);color:var(--cd);border-radius:2px}
+.pin-icon{color:var(--gold);font-size:.65rem}
+.btn{font-family:var(--mono);font-size:.6rem;padding:.2rem .5rem;cursor:pointer;border:1px solid var(--bg3);background:var(--bg);color:var(--cd);white-space:nowrap}
+.btn:hover{border-color:var(--leather);color:var(--cream)}
+.btn-p{background:var(--rust);border-color:var(--rust);color:var(--bg)}.btn-p:hover{background:#d06830}
+.btn-icon{background:none;border:none;color:var(--cm);cursor:pointer;font-size:.7rem;padding:.1rem .2rem}
+.btn-icon:hover{color:var(--cream)}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--bg3);padding:1.2rem;width:560px;max-width:92vw;max-height:90vh;overflow-y:auto}
+.modal h2{font-family:var(--mono);font-size:.75rem;margin-bottom:.8rem;color:var(--rust);text-transform:uppercase;letter-spacing:1px}
+.fr{margin-bottom:.5rem}
+.fr label{display:block;font-family:var(--mono);font-size:.5rem;color:var(--cm);text-transform:uppercase;letter-spacing:1px;margin-bottom:.1rem}
+.fr input,.fr select,.fr textarea{width:100%;padding:.35rem .5rem;background:var(--bg);border:1px solid var(--bg3);color:var(--cream);font-family:var(--mono);font-size:.7rem}
+.fr input:focus,.fr select:focus,.fr textarea:focus{outline:none;border-color:var(--leather)}
+.fr textarea{font-family:var(--mono);line-height:1.5;resize:vertical}
+.acts{display:flex;gap:.4rem;justify-content:flex-end;margin-top:.8rem}
+.empty{text-align:center;padding:3rem;color:var(--cm);font-style:italic;font-size:.8rem}
+.color-row{display:flex;gap:.3rem;margin-top:.2rem}
+.color-dot{width:20px;height:20px;border-radius:50%;cursor:pointer;border:2px solid transparent}
+.color-dot.sel{border-color:var(--cream)}
+.sort-sel{background:var(--bg2);border:1px solid var(--bg3);color:var(--cm);font-family:var(--mono);font-size:.6rem;padding:.25rem .4rem}
+.wc{color:var(--leather);font-size:.5rem}
+@media(max-width:640px){.side{width:180px}.stats{flex-wrap:wrap}.st{min-width:60px}}
+</style></head><body>
+<div class="hdr">
+<h1>NOTEBOOK</h1>
+<div class="hdr-r">
+<button class="btn" onclick="exportAll()">Export All</button>
+<button class="btn btn-p" onclick="openNoteForm()">+ Note</button>
 </div>
 </div>
-<div id="editorEmpty" class="editor-pane" style="display:flex;align-items:center;justify-content:center">
-<div class="empty">Select a note or create a new one.</div>
+<div class="stats" id="stats"></div>
+<div class="wrap">
+<div class="side">
+<div class="side-hdr"><span>Notebooks</span><button class="btn-icon" onclick="openNbForm()" title="New Notebook">+</button></div>
+<div class="nb-list" id="nbList"></div>
+</div>
+<div class="main">
+<div class="toolbar">
+<input class="search" id="search" placeholder="Search notes..." oninput="debounceSearch()">
+<select class="sort-sel" id="sortBy" onchange="load()">
+<option value="updated">Last Updated</option>
+<option value="created">Created</option>
+<option value="title">Title</option>
+</select>
+</div>
+<div class="notes" id="notes"></div>
 </div>
 </div>
-<div id="modal"></div>
-
+<div class="modal-bg" id="mbg" onclick="if(event.target===this)cm()"><div class="modal" id="mdl"></div></div>
 <script>
-let notes=[],notebooks=[],tags=[],curNote=null,curFilter={},saveTimer=null,previewOn=false;
+const A='/api';let notes=[],notebooks=[],tags=[],curNb='',curTag='',showArchive=false,searchTimer;
+const COLORS=['#e8753a','#d4a843','#4a9e5c','#5b8ed4','#c94444','#a0845c','#8e6cc4','#c45d8a'];
 
-async function api(url,opts){const r=await fetch(url,opts);return r.json()}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function timeAgo(d){if(!d)return'';const s=Math.floor((Date.now()-new Date(d))/1e3);if(s<60)return s+'s ago';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago'}
-
-async function init(){
-  const [nbd,td,sd]=await Promise.all([api('/api/notebooks'),api('/api/tags'),api('/api/stats')]);
-  notebooks=nbd.notebooks||[];tags=td.tags||[];
-  renderSidebar(sd);
-  loadNotes();
+async function load(){
+const[nr,nbr,tr,sr]=await Promise.all([
+fetch(A+'/notes?'+new URLSearchParams({notebook_id:curNb,tag:curTag,search:document.getElementById('search').value,sort:document.getElementById('sortBy').value,archived:showArchive?'true':'false',limit:'200'})).then(r=>r.json()),
+fetch(A+'/notebooks').then(r=>r.json()),
+fetch(A+'/tags').then(r=>r.json()),
+fetch(A+'/stats').then(r=>r.json())
+]);
+notes=nr.notes||[];notebooks=nbr.notebooks||[];tags=tr.tags||[];
+renderStats(sr);renderSidebar();renderNotes();
 }
 
-function renderSidebar(sd){
-  document.getElementById('sAll').textContent=sd.notes;
-  document.getElementById('sWords').textContent=sd.words.toLocaleString()+' words';
-  const nbEl=document.getElementById('nbList');
-  nbEl.innerHTML=notebooks.map(nb=>'<div class="sidebar-item" onclick="filterNotebook(\''+nb.id+'\')" data-nb="'+nb.id+'"><div class="sidebar-dot" style="background:'+esc(nb.color)+'"></div>'+esc(nb.name)+'<span class="sidebar-count">'+nb.note_count+'</span></div>').join('');
-  const tagEl=document.getElementById('tagList');
-  tagEl.innerHTML=(tags||[]).map(t=>'<div class="sidebar-item" onclick="filterTag(\''+esc(t)+'\')"><span style="color:var(--leather)">#</span>'+esc(t)+'</div>').join('');
-  // update notebook selector in editor
-  const sel=document.getElementById('edNb');
-  sel.innerHTML='<option value="">No notebook</option>'+notebooks.map(nb=>'<option value="'+nb.id+'">'+esc(nb.name)+'</option>').join('');
-  if(curNote)sel.value=curNote.notebook_id||'';
+function renderStats(s){
+document.getElementById('stats').innerHTML=
+'<div class="st"><div class="st-v">'+s.notes+'</div><div class="st-l">Notes</div></div>'+
+'<div class="st"><div class="st-v">'+s.notebooks+'</div><div class="st-l">Notebooks</div></div>'+
+'<div class="st"><div class="st-v">'+s.pinned+'</div><div class="st-l">Pinned</div></div>'+
+'<div class="st"><div class="st-v">'+(s.words||0).toLocaleString()+'</div><div class="st-l">Words</div></div>'+
+'<div class="st"><div class="st-v">'+s.tags+'</div><div class="st-l">Tags</div></div>';
 }
 
-function filterNotebook(id){curFilter={notebook_id:id};highlightSidebar(id?id:'all');loadNotes()}
-function filterTag(t){curFilter={tag:t};loadNotes()}
-function filterPinned(){curFilter={pinned:'true'};loadNotes()}
-function filterArchived(){curFilter={archived:'true'};loadNotes()}
-
-function highlightSidebar(id){
-  document.querySelectorAll('.sidebar-item').forEach(el=>{
-    el.classList.toggle('active',el.dataset.nb===id)
-  })
+function renderSidebar(){
+let h='<div class="nb-item'+(curNb===''&&!curTag&&!showArchive?' active':'')+'" onclick="selNb(\\'\\')"><span class="nb-special">All Notes</span></div>';
+h+='<div class="nb-item'+(showArchive?' active':'')+'" onclick="toggleArchive()"><span class="nb-special">Archive</span></div>';
+notebooks.forEach(nb=>{
+h+='<div class="nb-item'+(curNb===nb.id?' active':'')+'" onclick="selNb(\''+nb.id+'\')">';
+h+='<span class="nb-dot" style="background:'+esc(nb.color||'#e8753a')+'"></span>';
+h+='<span class="nb-name">'+esc(nb.name)+'</span>';
+h+='<span class="nb-count">'+nb.note_count+'</span>';
+h+='</div>';
+});
+if(tags.length){
+h+='<div style="padding:.4rem .8rem;margin-top:.3rem;border-top:1px solid var(--bg3)"><span style="font-family:var(--mono);font-size:.5rem;color:var(--cm);text-transform:uppercase;letter-spacing:1px">Tags</span></div>';
+tags.sort().forEach(t=>{
+h+='<div class="nb-item'+(curTag===t?' active':'')+'" onclick="selTag(\''+esc(t)+'\')"><span class="tag">'+esc(t)+'</span></div>';
+});
 }
-
-async function loadNotes(){
-  const p=new URLSearchParams();
-  if(curFilter.notebook_id)p.set('notebook_id',curFilter.notebook_id);
-  if(curFilter.tag)p.set('tag',curFilter.tag);
-  if(curFilter.pinned)p.set('pinned',curFilter.pinned);
-  if(curFilter.archived)p.set('archived',curFilter.archived);
-  const q=document.getElementById('searchBox').value;
-  if(q)p.set('search',q);
-  const d=await api('/api/notes?'+p);
-  notes=d.notes||[];
-  renderNotes();
+document.getElementById('nbList').innerHTML=h;
 }
 
 function renderNotes(){
-  const el=document.getElementById('noteList');
-  if(!notes.length){el.innerHTML='<div class="empty" style="padding:2rem">No notes found.</div>';return}
-  el.innerHTML=notes.map(n=>{
-    const tags=(n.tags||[]).map(t=>'<span class="tag-chip">'+esc(t)+'</span>').join(' ');
-    const preview=n.body.substring(0,80).replace(/\n/g,' ');
-    const active=curNote&&curNote.id===n.id?'active':'';
-    return '<div class="note-item '+active+'" onclick="openNote(\''+n.id+'\')">'+
-      '<div class="note-item-title">'+(n.pinned?'<span class="pin">&#x1f4cc;</span>':'')+esc(n.title)+'</div>'+
-      '<div class="note-item-preview">'+esc(preview)+'</div>'+
-      '<div class="note-item-meta"><span>'+timeAgo(n.updated_at)+'</span><span>'+n.word_count+'w</span>'+tags+'</div></div>'
-  }).join('')
+if(!notes.length){document.getElementById('notes').innerHTML='<div class="empty">'+(showArchive?'No archived notes.':'No notes yet. Create one!')+'</div>';return;}
+let h='';notes.forEach(n=>{
+const preview=n.body?n.body.substring(0,180).replace(/\n/g,' '):'';
+const nbObj=n.notebook_id?notebooks.find(nb=>nb.id===n.notebook_id):null;
+h+='<div class="note'+(n.pinned?' pinned':'')+'" ondblclick="openEditor(\''+n.id+'\')">';
+h+='<div class="note-top"><div class="note-title'+(n.title?'':' untitled')+'">'+(n.pinned?'<span class="pin-icon">&#x1F4CC;</span> ':'')+(n.title?esc(n.title):'Untitled')+'</div>';
+h+='<div class="note-acts">';
+if(!n.archived){
+h+='<button class="btn-icon" onclick="event.stopPropagation();togglePin(\''+n.id+'\','+!n.pinned+')" title="'+(n.pinned?'Unpin':'Pin')+'">'+(n.pinned?'&#x1F4CC;':'&#x1F4CD;')+'</button>';
+h+='<button class="btn-icon" onclick="event.stopPropagation();openEditor(\''+n.id+'\')" title="Edit">&#x270E;</button>';
+h+='<button class="btn-icon" onclick="event.stopPropagation();archiveNote(\''+n.id+'\',true)" title="Archive">&#x1F4E6;</button>';
+} else {
+h+='<button class="btn-icon" onclick="event.stopPropagation();archiveNote(\''+n.id+'\',false)" title="Unarchive">&#x21A9;</button>';
+}
+h+='<button class="btn-icon" onclick="event.stopPropagation();del(\''+n.id+'\')" title="Delete" style="color:var(--red)">&#x2715;</button>';
+h+='</div></div>';
+if(preview)h+='<div class="note-preview">'+esc(preview)+'</div>';
+h+='<div class="note-meta">';
+if(nbObj)h+='<span style="color:'+esc(nbObj.color||'var(--leather)')+'">'+esc(nbObj.name)+'</span>';
+h+='<span>'+timeAgo(n.updated_at)+'</span>';
+if(n.word_count)h+='<span class="wc">'+n.word_count+' words</span>';
+if(n.tags)n.tags.forEach(t=>h+='<span class="tag">'+esc(t)+'</span>');
+h+='</div></div>';
+});
+document.getElementById('notes').innerHTML=h;
 }
 
-async function openNote(id){
-  const n=await api('/api/notes/'+id);
-  curNote=n;
-  document.getElementById('editorPane').style.display='flex';
-  document.getElementById('editorEmpty').style.display='none';
-  document.getElementById('edTitle').value=n.title;
-  document.getElementById('edBody').value=n.body;
-  document.getElementById('edTags').value=(n.tags||[]).join(', ');
-  document.getElementById('edNb').value=n.notebook_id||'';
-  document.getElementById('pinBtn').textContent=n.pinned?'Unpin':'Pin';
-  document.getElementById('edMeta').textContent=n.word_count+'w · '+timeAgo(n.updated_at);
-  if(previewOn)updatePreview();
-  renderNotes();
+function selNb(id){curNb=id;curTag='';showArchive=false;load();}
+function selTag(t){curTag=t;curNb='';showArchive=false;load();}
+function toggleArchive(){showArchive=!showArchive;curNb='';curTag='';load();}
+function debounceSearch(){clearTimeout(searchTimer);searchTimer=setTimeout(load,300);}
+
+async function togglePin(id,pin){await fetch(A+'/notes/'+id+'/'+(pin?'pin':'unpin'),{method:'POST'});load();}
+async function archiveNote(id,archive){await fetch(A+'/notes/'+id+'/'+(archive?'archive':'unarchive'),{method:'POST'});load();}
+async function del(id){if(confirm('Delete this note?')){await fetch(A+'/notes/'+id,{method:'DELETE'});load();}}
+
+function openNoteForm(note){
+const n=note||{};
+let nbOpts='<option value="">None</option>';
+notebooks.forEach(nb=>nbOpts+='<option value="'+nb.id+'"'+(n.notebook_id===nb.id?' selected':'')+'>'+esc(nb.name)+'</option>');
+document.getElementById('mdl').innerHTML='<h2>'+(n.id?'Edit':'New')+' Note</h2>'+
+'<div class="fr"><label>Title</label><input id="f-title" value="'+esc(n.title||'')+'"></div>'+
+'<div class="fr"><label>Notebook</label><select id="f-nb">'+nbOpts+'</select></div>'+
+'<div class="fr"><label>Content</label><textarea id="f-body" rows="12">'+esc(n.body||'')+'</textarea></div>'+
+'<div class="fr"><label>Tags (comma separated)</label><input id="f-tags" value="'+esc((n.tags||[]).join(', '))+'"></div>'+
+'<div class="acts">'+(n.id?'<button class="btn" onclick="exportNote(\''+n.id+'\')" style="margin-right:auto">Export</button>':'')+
+'<button class="btn" onclick="cm()">Cancel</button><button class="btn btn-p" onclick="saveNote('+(n.id?"'"+n.id+"'":"null")+')">Save</button></div>';
+document.getElementById('mbg').classList.add('open');
+setTimeout(function(){document.getElementById('f-title').focus();},100);
 }
 
-function newNote(){
-  const nb=curFilter.notebook_id||'';
-  api('/api/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:'Untitled',body:'',notebook_id:nb,tags:[]})}).then(n=>{
-    loadNotes().then(()=>openNote(n.id));
-    init();
-  })
+async function openEditor(id){
+const n=await fetch(A+'/notes/'+id).then(r=>r.json());
+openNoteForm(n);
 }
 
-function autoSave(){
-  if(saveTimer)clearTimeout(saveTimer);
-  saveTimer=setTimeout(saveNote,500);
+async function saveNote(id){
+const tags=document.getElementById('f-tags').value.split(',').map(function(t){return t.trim();}).filter(Boolean);
+const body={title:document.getElementById('f-title').value||'Untitled',body:document.getElementById('f-body').value,notebook_id:document.getElementById('f-nb').value,tags:tags};
+if(id){await fetch(A+'/notes/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+else{await fetch(A+'/notes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+cm();load();
 }
 
-async function saveNote(){
-  if(!curNote)return;
-  const tags=(document.getElementById('edTags').value||'').split(',').map(s=>s.trim()).filter(Boolean);
-  const body={
-    title:document.getElementById('edTitle').value||'Untitled',
-    body:document.getElementById('edBody').value,
-    tags:tags,
-    notebook_id:document.getElementById('edNb').value
-  };
-  await api('/api/notes/'+curNote.id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  curNote.title=body.title;curNote.body=body.body;curNote.tags=tags;
-  curNote.word_count=body.body.split(/\s+/).filter(Boolean).length;
-  document.getElementById('edMeta').textContent=curNote.word_count+'w · just now';
-  if(previewOn)updatePreview();
-  renderNotes();
+function openNbForm(nb){
+const n=nb||{};
+let colorH='<div class="color-row">';
+COLORS.forEach(function(c){colorH+='<div class="color-dot'+(c===(n.color||'#e8753a')?' sel':'')+'" style="background:'+c+'" onclick="pickColor(this,\''+c+'\')"></div>';});
+colorH+='</div>';
+document.getElementById('mdl').innerHTML='<h2>'+(n.id?'Edit':'New')+' Notebook</h2>'+
+'<div class="fr"><label>Name</label><input id="f-nbname" value="'+esc(n.name||'')+'"></div>'+
+'<div class="fr"><label>Color</label><input type="hidden" id="f-nbcolor" value="'+(n.color||'#e8753a')+'">'+colorH+'</div>'+
+'<div class="acts">'+
+(n.id?'<button class="btn" onclick="delNb(\''+n.id+'\')" style="margin-right:auto;color:var(--red)">Delete</button>':'')+
+'<button class="btn" onclick="cm()">Cancel</button><button class="btn btn-p" onclick="saveNb('+(n.id?"'"+n.id+"'":"null")+')">Save</button></div>';
+document.getElementById('mbg').classList.add('open');
+setTimeout(function(){document.getElementById('f-nbname').focus();},100);
 }
 
-async function togglePin(){
-  if(!curNote)return;
-  const action=curNote.pinned?'unpin':'pin';
-  await api('/api/notes/'+curNote.id+'/'+action,{method:'POST'});
-  curNote.pinned=!curNote.pinned;
-  document.getElementById('pinBtn').textContent=curNote.pinned?'Unpin':'Pin';
-  loadNotes();
+function pickColor(el,c){document.querySelectorAll('.color-dot').forEach(function(d){d.classList.remove('sel');});el.classList.add('sel');document.getElementById('f-nbcolor').value=c;}
+
+async function saveNb(id){
+const body={name:document.getElementById('f-nbname').value,color:document.getElementById('f-nbcolor').value};
+if(!body.name){alert('Name required');return;}
+if(id){await fetch(A+'/notebooks/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+else{await fetch(A+'/notebooks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}
+cm();load();
 }
 
-async function archiveCur(){
-  if(!curNote)return;
-  await api('/api/notes/'+curNote.id+'/archive',{method:'POST'});
-  curNote=null;
-  document.getElementById('editorPane').style.display='none';
-  document.getElementById('editorEmpty').style.display='flex';
-  loadNotes();init();
-}
+async function delNb(id){if(confirm('Delete notebook? Notes will be unassigned.')){await fetch(A+'/notebooks/'+id,{method:'DELETE'});cm();curNb='';load();}}
 
-async function deleteCur(){
-  if(!curNote||!confirm('Delete this note?'))return;
-  await api('/api/notes/'+curNote.id,{method:'DELETE'});
-  curNote=null;
-  document.getElementById('editorPane').style.display='none';
-  document.getElementById('editorEmpty').style.display='flex';
-  loadNotes();init();
-}
+function exportNote(id){window.open(A+'/notes/'+id+'/export','_blank');}
+function exportAll(){window.open(A+'/export','_blank');}
 
-function exportNote(){
-  if(!curNote)return;
-  window.open('/api/notes/'+curNote.id+'/export','_blank');
-}
-
-function togglePreview(){
-  previewOn=!previewOn;
-  document.getElementById('previewArea').style.display=previewOn?'block':'none';
-  document.getElementById('previewBtn').textContent=previewOn?'Edit':'Preview';
-  if(previewOn)updatePreview();
-}
-
-function updatePreview(){
-  const md=document.getElementById('edBody').value;
-  document.getElementById('previewArea').innerHTML=renderMd(md);
-}
-
-function renderMd(md){
-  let html=esc(md);
-  html=html.replace(/^### (.+)$/gm,'<h3>$1</h3>');
-  html=html.replace(/^## (.+)$/gm,'<h2>$1</h2>');
-  html=html.replace(/^# (.+)$/gm,'<h1>$1</h1>');
-  html=html.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-  html=html.replace(/\*(.+?)\*/g,'<em>$1</em>');
-  html=html.replace(/` + "`" + `([^` + "`" + `]+)` + "`" + `/g,'<code>$1</code>');
-  html=html.replace(/^&gt; (.+)$/gm,'<blockquote>$1</blockquote>');
-  html=html.replace(/^- (.+)$/gm,'<li>$1</li>');
-  html=html.replace(/(<li>.*<\/li>)/s,function(m){return '<ul>'+m+'</ul>'});
-  html=html.replace(/\n\n/g,'</p><p>');
-  html='<p>'+html+'</p>';
-  return html;
-}
-
-function showNewNotebook(){
-  document.getElementById('modal').innerHTML='<div class="modal-bg" onclick="if(event.target===this)closeModal()"><div class="modal">'+
-    '<h2>New Notebook</h2>'+
-    '<label class="fl">Name</label><input type="text" id="nn-name">'+
-    '<label class="fl">Color</label><input type="color" id="nn-color" value="#c45d2c" style="height:30px;padding:2px">'+
-    '<div style="display:flex;gap:.5rem;margin-top:1rem"><button class="btn btn-p" onclick="saveNewNb()">Create</button><button class="btn btn-d" onclick="closeModal()">Cancel</button></div>'+
-  '</div></div>'
-}
-async function saveNewNb(){
-  const body={name:document.getElementById('nn-name').value,color:document.getElementById('nn-color').value};
-  if(!body.name){alert('Name required');return}
-  await api('/api/notebooks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-  closeModal();init();
-}
-function closeModal(){document.getElementById('modal').innerHTML=''}
-
-init();
-fetch('/api/tier').then(r=>r.json()).then(j=>{if(j.tier==='free'){var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'}}).catch(()=>{var b=document.getElementById('upgrade-banner');if(b)b.style.display='block'});
+function cm(){document.getElementById('mbg').classList.remove('open');}
+function esc(s){if(!s)return'';var d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function timeAgo(d){if(!d)return'';var s=Math.floor((Date.now()-new Date(d).getTime())/1000);if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';if(s<604800)return Math.floor(s/86400)+'d ago';return new Date(d).toLocaleDateString();}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')cm();if(e.ctrlKey&&e.key==='n'){e.preventDefault();openNoteForm();}});
+load();
 </script></body></html>`
