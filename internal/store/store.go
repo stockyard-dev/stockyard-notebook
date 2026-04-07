@@ -25,7 +25,7 @@ type Notebook struct {
 
 type Note struct {
 	ID         string   `json:"id"`
-	NotebookID string   `json:"notebook_id,omitempty"`
+	NotebookID string   `json:"notebook_id"`
 	Title      string   `json:"title"`
 	Body       string   `json:"body"`
 	Tags       []string `json:"tags"`
@@ -41,7 +41,7 @@ type NoteFilter struct {
 	Tag        string
 	Search     string
 	Pinned     string // "true", "false", ""
-	Archived   string
+	Archived   string // "true", "all", or default (only non-archived)
 	SortBy     string // created, updated, title
 	SortDir    string
 	Limit      int
@@ -79,6 +79,13 @@ func Open(dataDir string) (*DB, error) {
 		`CREATE INDEX IF NOT EXISTS idx_notes_notebook ON notes(notebook_id)`,
 		`CREATE INDEX IF NOT EXISTS idx_notes_pinned ON notes(pinned)`,
 		`CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at)`,
+		`CREATE INDEX IF NOT EXISTS idx_notes_archived ON notes(archived)`,
+		`CREATE TABLE IF NOT EXISTS extras (
+			resource TEXT NOT NULL,
+			record_id TEXT NOT NULL,
+			data TEXT NOT NULL DEFAULT '{}',
+			PRIMARY KEY(resource, record_id)
+		)`,
 	} {
 		if _, err := db.Exec(q); err != nil {
 			return nil, fmt.Errorf("migrate: %w", err)
@@ -88,14 +95,15 @@ func Open(dataDir string) (*DB, error) {
 }
 
 func (d *DB) Close() error { return d.db.Close() }
-func genID() string        { return fmt.Sprintf("%d", time.Now().UnixNano()) }
-func now() string          { return time.Now().UTC().Format(time.RFC3339) }
+
+func genID() string { return fmt.Sprintf("%d", time.Now().UnixNano()) }
+func now() string   { return time.Now().UTC().Format(time.RFC3339) }
 
 func wordCount(s string) int {
 	return len(strings.Fields(s))
 }
 
-// ── Notebooks ──
+// ─── Notebooks ────────────────────────────────────────────────────
 
 func (d *DB) CreateNotebook(nb *Notebook) error {
 	nb.ID = genID()
@@ -106,14 +114,19 @@ func (d *DB) CreateNotebook(nb *Notebook) error {
 	if nb.Color == "" {
 		nb.Color = "#c45d2c"
 	}
-	_, err := d.db.Exec(`INSERT INTO notebooks (id,name,slug,color,created_at) VALUES (?,?,?,?,?)`,
-		nb.ID, nb.Name, nb.Slug, nb.Color, nb.CreatedAt)
+	_, err := d.db.Exec(
+		`INSERT INTO notebooks (id, name, slug, color, created_at) VALUES (?, ?, ?, ?, ?)`,
+		nb.ID, nb.Name, nb.Slug, nb.Color, nb.CreatedAt,
+	)
 	return err
 }
 
 func (d *DB) GetNotebook(id string) *Notebook {
 	var nb Notebook
-	if err := d.db.QueryRow(`SELECT id,name,slug,color,created_at FROM notebooks WHERE id=?`, id).Scan(&nb.ID, &nb.Name, &nb.Slug, &nb.Color, &nb.CreatedAt); err != nil {
+	err := d.db.QueryRow(
+		`SELECT id, name, slug, color, created_at FROM notebooks WHERE id=?`, id,
+	).Scan(&nb.ID, &nb.Name, &nb.Slug, &nb.Color, &nb.CreatedAt)
+	if err != nil {
 		return nil
 	}
 	d.db.QueryRow(`SELECT COUNT(*) FROM notes WHERE notebook_id=? AND archived=0`, id).Scan(&nb.NoteCount)
@@ -121,7 +134,7 @@ func (d *DB) GetNotebook(id string) *Notebook {
 }
 
 func (d *DB) ListNotebooks() []Notebook {
-	rows, err := d.db.Query(`SELECT id,name,slug,color,created_at FROM notebooks ORDER BY name ASC`)
+	rows, err := d.db.Query(`SELECT id, name, slug, color, created_at FROM notebooks ORDER BY name ASC`)
 	if err != nil {
 		return nil
 	}
@@ -139,17 +152,23 @@ func (d *DB) ListNotebooks() []Notebook {
 }
 
 func (d *DB) UpdateNotebook(id string, nb *Notebook) error {
-	_, err := d.db.Exec(`UPDATE notebooks SET name=?,slug=?,color=? WHERE id=?`, nb.Name, nb.Slug, nb.Color, id)
+	_, err := d.db.Exec(
+		`UPDATE notebooks SET name=?, slug=?, color=? WHERE id=?`,
+		nb.Name, nb.Slug, nb.Color, id,
+	)
 	return err
 }
 
+// DeleteNotebook removes the notebook and orphans its notes (sets their
+// notebook_id to ”). Note extras for the orphaned notes are kept.
+// Notebook's own extras must be cleaned up by the caller.
 func (d *DB) DeleteNotebook(id string) error {
 	d.db.Exec(`UPDATE notes SET notebook_id='' WHERE notebook_id=?`, id)
 	_, err := d.db.Exec(`DELETE FROM notebooks WHERE id=?`, id)
 	return err
 }
 
-// ── Notes ──
+// ─── Notes ────────────────────────────────────────────────────────
 
 func (d *DB) CreateNote(n *Note) error {
 	n.ID = genID()
@@ -167,8 +186,11 @@ func (d *DB) CreateNote(n *Note) error {
 	if n.Archived {
 		archived = 1
 	}
-	_, err := d.db.Exec(`INSERT INTO notes (id,notebook_id,title,body,tags_json,pinned,archived,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?)`,
-		n.ID, n.NotebookID, n.Title, n.Body, string(tj), pinned, archived, n.CreatedAt, n.UpdatedAt)
+	_, err := d.db.Exec(
+		`INSERT INTO notes (id, notebook_id, title, body, tags_json, pinned, archived, created_at, updated_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		n.ID, n.NotebookID, n.Title, n.Body, string(tj), pinned, archived, n.CreatedAt, n.UpdatedAt,
+	)
 	return err
 }
 
@@ -189,7 +211,7 @@ func (d *DB) scanNote(s interface{ Scan(...any) error }) *Note {
 	return &n
 }
 
-const noteCols = `id,notebook_id,title,body,tags_json,pinned,archived,created_at,updated_at`
+const noteCols = `id, notebook_id, title, body, tags_json, pinned, archived, created_at, updated_at`
 
 func (d *DB) GetNote(id string) *Note {
 	return d.scanNote(d.db.QueryRow(`SELECT `+noteCols+` FROM notes WHERE id=?`, id))
@@ -220,6 +242,7 @@ func (d *DB) ListNotes(f NoteFilter) ([]Note, int) {
 		where = append(where, "archived=0")
 	}
 	w := strings.Join(where, " AND ")
+
 	var total int
 	d.db.QueryRow("SELECT COUNT(*) FROM notes WHERE "+w, args...).Scan(&total)
 
@@ -237,7 +260,10 @@ func (d *DB) ListNotes(f NoteFilter) ([]Note, int) {
 	if f.Limit <= 0 {
 		f.Limit = 50
 	}
-	q := fmt.Sprintf("SELECT %s FROM notes WHERE %s ORDER BY pinned DESC, %s %s LIMIT ? OFFSET ?", noteCols, w, order, dir)
+	q := fmt.Sprintf(
+		"SELECT %s FROM notes WHERE %s ORDER BY pinned DESC, %s %s LIMIT ? OFFSET ?",
+		noteCols, w, order, dir,
+	)
 	args = append(args, f.Limit, f.Offset)
 	rows, err := d.db.Query(q, args...)
 	if err != nil {
@@ -264,8 +290,11 @@ func (d *DB) UpdateNote(id string, n *Note) error {
 	if n.Archived {
 		archived = 1
 	}
-	_, err := d.db.Exec(`UPDATE notes SET notebook_id=?,title=?,body=?,tags_json=?,pinned=?,archived=?,updated_at=? WHERE id=?`,
-		n.NotebookID, n.Title, n.Body, string(tj), pinned, archived, n.UpdatedAt, id)
+	_, err := d.db.Exec(
+		`UPDATE notes SET notebook_id=?, title=?, body=?, tags_json=?, pinned=?, archived=?, updated_at=?
+		 WHERE id=?`,
+		n.NotebookID, n.Title, n.Body, string(tj), pinned, archived, n.UpdatedAt, id,
+	)
 	return err
 }
 
@@ -279,7 +308,7 @@ func (d *DB) PinNote(id string, pinned bool) error {
 	if pinned {
 		v = 1
 	}
-	_, err := d.db.Exec(`UPDATE notes SET pinned=?,updated_at=? WHERE id=?`, v, now(), id)
+	_, err := d.db.Exec(`UPDATE notes SET pinned=?, updated_at=? WHERE id=?`, v, now(), id)
 	return err
 }
 
@@ -288,11 +317,11 @@ func (d *DB) ArchiveNote(id string, archived bool) error {
 	if archived {
 		v = 1
 	}
-	_, err := d.db.Exec(`UPDATE notes SET archived=?,updated_at=? WHERE id=?`, v, now(), id)
+	_, err := d.db.Exec(`UPDATE notes SET archived=?, updated_at=? WHERE id=?`, v, now(), id)
 	return err
 }
 
-// ── Tags (all distinct) ──
+// ─── Tags ─────────────────────────────────────────────────────────
 
 func (d *DB) AllTags() []string {
 	rows, err := d.db.Query(`SELECT DISTINCT tags_json FROM notes WHERE tags_json != '[]'`)
@@ -310,14 +339,14 @@ func (d *DB) AllTags() []string {
 			seen[t] = true
 		}
 	}
-	var out []string
+	out := make([]string, 0, len(seen))
 	for t := range seen {
 		out = append(out, t)
 	}
 	return out
 }
 
-// ── Export ──
+// ─── Export ───────────────────────────────────────────────────────
 
 func (d *DB) ExportMarkdown(id string) string {
 	n := d.GetNote(id)
@@ -351,7 +380,7 @@ func (d *DB) ExportAll() string {
 	return sb.String()
 }
 
-// ── Stats ──
+// ─── Stats ────────────────────────────────────────────────────────
 
 type Stats struct {
 	Notes     int `json:"notes"`
@@ -369,7 +398,6 @@ func (d *DB) Stats() Stats {
 	d.db.QueryRow(`SELECT COUNT(*) FROM notes WHERE pinned=1 AND archived=0`).Scan(&s.Pinned)
 	d.db.QueryRow(`SELECT COUNT(*) FROM notes WHERE archived=1`).Scan(&s.Archived)
 	s.Tags = len(d.AllTags())
-	// approximate word count from all notes
 	rows, _ := d.db.Query(`SELECT body FROM notes WHERE archived=0`)
 	if rows != nil {
 		defer rows.Close()
@@ -380,4 +408,56 @@ func (d *DB) Stats() Stats {
 		}
 	}
 	return s
+}
+
+// ─── Extras: generic key-value storage for personalization custom fields ───
+
+func (d *DB) GetExtras(resource, recordID string) string {
+	var data string
+	err := d.db.QueryRow(
+		`SELECT data FROM extras WHERE resource=? AND record_id=?`,
+		resource, recordID,
+	).Scan(&data)
+	if err != nil || data == "" {
+		return "{}"
+	}
+	return data
+}
+
+func (d *DB) SetExtras(resource, recordID, data string) error {
+	if data == "" {
+		data = "{}"
+	}
+	_, err := d.db.Exec(
+		`INSERT INTO extras(resource, record_id, data) VALUES(?, ?, ?)
+		 ON CONFLICT(resource, record_id) DO UPDATE SET data=excluded.data`,
+		resource, recordID, data,
+	)
+	return err
+}
+
+func (d *DB) DeleteExtras(resource, recordID string) error {
+	_, err := d.db.Exec(
+		`DELETE FROM extras WHERE resource=? AND record_id=?`,
+		resource, recordID,
+	)
+	return err
+}
+
+func (d *DB) AllExtras(resource string) map[string]string {
+	out := make(map[string]string)
+	rows, _ := d.db.Query(
+		`SELECT record_id, data FROM extras WHERE resource=?`,
+		resource,
+	)
+	if rows == nil {
+		return out
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id, data string
+		rows.Scan(&id, &data)
+		out[id] = data
+	}
+	return out
 }
